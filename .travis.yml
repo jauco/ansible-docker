@@ -2,7 +2,7 @@
 language: python
 python: "2.7"
 
-dist: ubuntu/trusty
+dist: trusty
 
 env:
   - ANSIBLE_VERSION=1.4
