@@ -1,27 +1,22 @@
-# tasks file for docker
 ---
-- name: apt update
-  apt:
-    update_cache: true
-    cache_valid_time: 3600
-  tags: [configuration, docker, docker-apt-update]
-
+# tasks file for docker
 - name: install backported kernel
   apt:
     name: "{{ item }}"
     state: latest
+    update_cache: yes
   with_items: docker_backported_kernel_packages
   register: backported_kernel_result
   when: "ansible_distribution_version == '12.04' and docker_backported_kernel_packages"
   tags: [configuration, docker, docker-backported-kernel]
 
 - name: reboot
-  command: "/sbin/shutdown -r now"
+  command: /sbin/shutdown -r now
   async: 0
   poll: 0
   ignore_errors: true
   register: backported_kernel_result
-  when: "(ansible_distribution_version == '12.04' and backported_kernel_result | changed)"
+  when: "(ansible_distribution_version == '12.04' and backported_kernel_result|changed)"
   tags: [configuration, docker, docker-reboot]
 
 - name: wait for server to come online
@@ -33,7 +28,7 @@
     timeout: 600
     state: started
   sudo: false
-  when: "(ansible_distribution_version == '12.04' and backported_kernel_result | changed)"
+  when: "(ansible_distribution_version == '12.04' and backported_kernel_result|changed)"
   tags: [configuration, docker, docker-reboot]
 
 - name: install dependencies
@@ -41,6 +36,7 @@
     name: "{{ item }}"
     state: latest
   with_items: docker_dependencies
+  when: docker_dependencies
   tags: [configuration, docker, docker-dependencies]
 
 - name: detect https transport for apt
@@ -53,23 +49,22 @@
   apt:
     name: apt-transport-https
     state: latest
-  when: https_transport_file_stats.stat.exists == false
+  when: not https_transport_file_stats.stat.exists
   tags: [configuration, docker, docker-https-transport]
 
-- name: add public key
-  apt_key:
-    id: "{{ item.id }}"
-    url: "{{ item.url }}"
-    state: present
+- name: get_docker repository key
+  shell: "/usr/bin/curl {{ item.url }} | /usr/bin/apt-key --keyring /etc/apt/trusted.gpg.d/docker.gpg add - creates=/etc/apt/trusted.gpg.d/docker.gpg"
   with_items: docker_apt_key
+  when: docker_apt_key
   tags: [configuration, docker, docker-add-public-key]
 
 - name: add repository
   apt_repository:
     repo: "{{ item.type }} {{ item.url }} {{ item.component }}"
     state: present
-    update_cache: true
+    update_cache: yes
   with_items: docker_repository
+  when: docker_repository
   tags: [configuration, docker, docker-add-repository]
 
 - name: install
@@ -93,7 +88,7 @@
   service:
     name: docker
     state: started
-    enabled: true
+    enabled: yes
   tags: [configuration, docker, docker-start-enable-service]
 
 - name: check ufw default file existence
@@ -119,7 +114,7 @@
   tags: [configuration, docker, docker-updatedb]
 
 - name: disable indexing of /var/lib/docker
-  command: "/usr/bin/updatedb -e /var/lib/docker"
+  shell: /usr/bin/updatedb -e /var/lib/docker
   when: docker_manage_updatedb and updatedb_file_stats.stat.exists
   tags: [configuration, docker, docker-updatedb]
 
@@ -128,7 +123,7 @@
     name: "{{ item }}"
     state: latest
   with_items: docker_api_client_requirements
-  when: docker_install_api_client
+  when: docker_install_api_client and docker_api_client_requirements
   tags: [configuration, docker, docker-api-client]
 
 - name: install docker-py
