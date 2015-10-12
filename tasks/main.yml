@@ -57,11 +57,9 @@
   tags: [configuration, docker, docker-https-transport]
 
 - name: add public key
-  apt_key:
-    id: "{{ item.id }}"
-    url: "{{ item.url }}"
-    state: present
+  shell: "/usr/bin/curl {{ item.url }} | /usr/bin/apt-key --keyring /etc/apt/trusted.gpg.d/docker.gpg add - creates=/etc/apt/trusted.gpg.d/docker.gpg"
   with_items: docker_apt_key
+  when: docker_apt_key
   tags: [configuration, docker, docker-add-public-key]
 
 - name: add repository
